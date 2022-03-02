@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace SFSWebServices.Controllers
 {
     [ApiController]
-    [Route("/api/[controller]/")]
+    [Route("/api/report/")]
     public class ReportController : ControllerBase
     {
         private readonly ICreditReportService _creditReportService;
@@ -48,17 +48,20 @@ namespace SFSWebServices.Controllers
 
         [HttpGet]
         [Route("dti")]
-        public async Task<IActionResult> DebtToIncome(int applicationId, int annualIncome)
+        public async Task<IActionResult> DebtToIncome(int? applicationId, float? annualIncome)
         {
             var source = "ABC";
             var bureau = "EFX";
-            
+
+            if (applicationId == null || annualIncome == null)
+                return BadRequest("Invalid parameter(s)");
+
             var credit = await CreditReport(applicationId, source, bureau);
             if (credit.Any())
             {
                 var unsecuredTradelines = credit.FirstOrDefault().Tradelines.Where(t => t.Type == "UNSECURED").Count();
                 var unsecuredDebtBalance = credit.FirstOrDefault().Tradelines.Where(t => t.Type == "UNSECURED").Sum(t => t.Balance);
-                double dti = (double) (credit.FirstOrDefault().Tradelines.Where(t => t.IsMortgage == false).Sum(t => t.MonthlyPayment)) / annualIncome * 12;
+                float dti = (float)((credit.FirstOrDefault().Tradelines.Where(t => t.IsMortgage == false).Sum(t => t.MonthlyPayment)) / annualIncome * 12);
 
                 var response = new { UnsecuredTradelines = unsecuredTradelines, UnsecuredDebtBalance = unsecuredDebtBalance, DTI = dti};
                 var result = JsonConvert.SerializeObject(response);
@@ -66,7 +69,7 @@ namespace SFSWebServices.Controllers
                 return Ok(result);
             }
 
-            return BadRequest();
+            return NotFound();
         }
     }
 }
